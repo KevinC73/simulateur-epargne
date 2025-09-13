@@ -50,6 +50,7 @@
     table{width:100%;border-collapse:collapse}
     thead th{background:rgba(255,255,255,.05);padding:10px;color:#cbd5e1;text-align:left}
     tbody td{border-top:1px solid var(--outline);padding:10px;color:#dbe2ea}
+    .danger{background:#1b2836;border:1px solid #2b3b4f}
   </style>
 </head>
 <body>
@@ -80,6 +81,8 @@
       <h3 style="margin:0 0 6px">Livret classique (type Livret A)</h3>
       <div class="toggle"><input id="showLA" type="checkbox" checked><label for="showLA">Afficher la courbe Livret A</label></div>
       <div class="row"><label>Taux annuel (%)</label><input id="tauxLA" type="number" step="0.05" value="3"></div>
+      <div class="hr"></div>
+      <button id="clearSaved" class="btn danger">Effacer les valeurs sauvegardées</button>
     </div>
 
     <!-- RIGHT: KPIs + chart -->
@@ -115,6 +118,7 @@
 
 <script>
 (function(){
+  const KEY = 'simu-epargne-v1';
   const els = {
     capital: document.getElementById('capital'),
     mensuel: document.getElementById('mensuel'),
@@ -132,8 +136,20 @@
     k_final_la: document.getElementById('k_final_la'),
     k_real_la: document.getElementById('k_real_la'),
     tbody: document.getElementById('tbody'),
-    csvTop: document.getElementById('csvTop')
+    csvTop: document.getElementById('csvTop'),
+    clearSaved: document.getElementById('clearSaved')
   };
+
+  // Load saved state if present
+  try {
+    const saved = JSON.parse(localStorage.getItem(KEY) || '{}');
+    for (const [k,v] of Object.entries(saved)) {
+      if (k in els && els[k] instanceof HTMLInputElement) {
+        if (els[k].type === 'checkbox') els[k].checked = !!v;
+        else els[k].value = v;
+      }
+    }
+  } catch(e) { /* ignore */ }
 
   const ctx = document.getElementById('chart').getContext('2d');
   const chart = new Chart(ctx, {
@@ -160,14 +176,13 @@
 
   function getCss(v){ return getComputedStyle(document.documentElement).getPropertyValue(v).trim(); }
   const fmtMoney = n => new Intl.NumberFormat('fr-FR',{style:'currency',currency:'EUR',maximumFractionDigits:0}).format(n);
-
   const monthlyRate = a => Math.pow(1 + a/100, 1/12) - 1;
 
   function simulateInvestment({capital, mensuel, tauxAnnuel, fraisAnnuel, inflationAnnuel, duree, debutPeriode}){
     const months = Math.max(1, Math.round(duree*12));
     const r = monthlyRate(tauxAnnuel);
-    const f = monthlyRate(fraisAnnuel); // fee as % annual -> monthly increment; we subtract
     const i = monthlyRate(inflationAnnuel);
+    const fEff = monthlyRate(Math.max(0, fraisAnnuel));
 
     let bal = capital;
     let invested = capital;
@@ -179,8 +194,6 @@
       if(debutPeriode){ bal+=mensuel; invested+=mensuel; }
       const before = bal;
       const afterInterest = bal * (1 + r);
-      // model fees as a reduction of value by 'f' (i.e., after fee: afterInterest*(1 - f_eff)). Use fEff from annual % as positive number.
-      const fEff = monthlyRate(fraisAnnuel >= 0 ? fraisAnnuel : 0); // ensure non-negative
       const afterFee = afterInterest * (1 - fEff);
       const interestBrut = afterInterest - before;
       const feeAmt = afterInterest - afterFee;
@@ -215,8 +228,8 @@
     return {series, real, final: bal, realFinal: real[real.length-1]};
   }
 
-  function render(){
-    const p = {
+  function getParams(){
+    return {
       capital: Number(els.capital.value||0),
       mensuel: Number(els.mensuel.value||0),
       tauxAnnuel: Number(els.tauxAnnuel.value||0),
@@ -227,11 +240,18 @@
       tauxLA: Number(els.tauxLA.value||0),
       showLA: els.showLA.checked
     };
+  }
 
+  function save(){
+    const data = getParams();
+    try { localStorage.setItem(KEY, JSON.stringify(data)); } catch(e){/* ignore quota */}
+  }
+
+  function render(){
+    const p = getParams();
     const inv = simulateInvestment(p);
     const la  = p.showLA ? simulateLivretA(p) : {series:[], real:[], final:0, realFinal:0};
 
-    // Chart
     chart.data.labels = Array.from({length: inv.months}, (_,i)=> i+1);
     chart.data.datasets[0].data = inv.deposits;
     chart.data.datasets[1].data = inv.portfolio;
@@ -240,7 +260,6 @@
     chart.data.datasets[4].data = la.real;
     chart.update('none');
 
-    // KPIs
     els.k_final_inv.textContent   = fmtMoney(inv.final);
     els.k_interest_inv.textContent= fmtMoney(inv.interest);
     els.k_deposits.textContent    = fmtMoney(inv.invested);
@@ -248,13 +267,11 @@
     els.k_final_la.textContent    = p.showLA ? fmtMoney(la.final) : '—';
     els.k_real_la.textContent     = p.showLA ? fmtMoney(la.realFinal) : '—';
 
-    // Table
     els.tbody.innerHTML = inv.rows.map(r => `<tr><td>${r.p}</td><td>${fmtMoney(r.dep)}</td><td>${fmtMoney(r.interets)}</td><td>${fmtMoney(r.frais)}</td><td>${fmtMoney(r.total)}</td></tr>`).join('');
   }
 
   function exportCsv(){
     const rows = [['Periode','Versement','InteretsBrut','Frais','TotalFinPeriode']];
-    // read current table body so export matches view
     document.querySelectorAll('#tbody tr').forEach(tr => {
       rows.push([...tr.children].map(td => td.textContent.replace(/\s/g,'')));
     });
@@ -267,17 +284,35 @@
     URL.revokeObjectURL(url);
   }
 
-  // Wire
+  // Wire events + autosave
   ['input','change'].forEach(evt => {
     Object.values({
       cap:els.capital, men:els.mensuel, t:els.tauxAnnuel, f:els.fraisAnnuel, inf:els.inflationAnnuel,
       d:els.duree, deb:els.debutPeriode, show:els.showLA, tLA:els.tauxLA
-    }).forEach(el => el.addEventListener(evt, render));
+    }).forEach(el => el.addEventListener(evt, () => { save(); render(); }));
   });
+
   els.csvTop.addEventListener('click', exportCsv);
+  els.clearSaved.addEventListener('click', () => {
+    localStorage.removeItem(KEY);
+    // Reset to defaults
+    els.capital.value = 300;
+    els.mensuel.value = 50;
+    els.tauxAnnuel.value = 11;
+    els.fraisAnnuel.value = 0.3;
+    els.inflationAnnuel.value = 2;
+    els.duree.value = 10;
+    els.debutPeriode.checked = true;
+    els.showLA.checked = true;
+    els.tauxLA.value = 3;
+    save();
+    render();
+  });
 
   // Initial draw
   render();
+  // Save initial state if nothing saved
+  save();
 })();
 </script>
 </body>
