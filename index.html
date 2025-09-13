@@ -70,7 +70,7 @@
 
 <div class="wrap">
   <div class="grid">
-    <!-- LEFT: Inputs -->
+    <!-- LEFT -->
     <div class="card">
       <div id="banner" class="banner">💡 Si tu ne vois pas de lignes par défaut, clique sur <b>“Effacer la sauvegarde”</b> pour repartir d’un modèle pré-rempli.</div>
       <div class="row"><label>Revenu net mensuel (€)</label><input id="revenu" type="number" value="2500"></div>
@@ -105,7 +105,7 @@
       </div>
     </div>
 
-    <!-- RIGHT: KPIs + Charts + Insights -->
+    <!-- RIGHT -->
     <div class="card">
       <div class="kpis">
         <div class="kpi"><div class="lab">Dépenses fixes</div><div id="k_fixes" class="val">—</div></div>
@@ -141,9 +141,11 @@
 
 <script>
 (function(){
+  "use strict";
+
   const KEY='budget-v1';
-  const € = n => new Intl.NumberFormat('fr-FR',{style:'currency',currency:'EUR',maximumFractionDigits:0}).format(n||0);
-  const el = id => document.getElementById(id);
+  function formatEUR(n){ return new Intl.NumberFormat('fr-FR',{style:'currency',currency:'EUR',maximumFractionDigits:0}).format(n||0); }
+  function $(id){ return document.getElementById(id); }
 
   // Defaults
   const defaults = {
@@ -156,19 +158,19 @@
       {name:'Forfaits mobiles', amount: 40},
       {name:'Internet', amount: 30},
       {name:'Abonnements (SVOD, musique…)', amount: 35},
-      {name:'Mutuelle santé', amount: 45},
+      {name:'Mutuelle santé', amount: 45}
     ],
     variables: [
       {name:'Courses', amount: 450},
       {name:'Carburant / Transports', amount: 120},
       {name:'Restaurants / Cafés', amount: 120},
       {name:'Loisirs / Sport', amount: 60},
-      {name:'Divers', amount: 80},
+      {name:'Divers', amount: 80}
     ],
     oblig: [
       {name:'Impôt mensuel', amount: 150},
       {name:'Cantine / Crèche', amount: 120},
-      {name:'Remboursement crédit conso', amount: 90},
+      {name:'Remboursement crédit conso', amount: 90}
     ]
   };
 
@@ -186,8 +188,8 @@
   };
 
   // Elements
-  const lists = { fixes: el('listFixes'), variables: el('listVariables'), oblig: el('listOblig') };
-  const banner = el('banner');
+  const lists = { fixes: $('listFixes'), variables: $('listVariables'), oblig: $('listOblig') };
+  const banner = $('banner');
 
   function maybeBanner(){
     const empty = (!state.fixes?.length) && (!state.variables?.length) && (!state.oblig?.length);
@@ -207,25 +209,27 @@
         <span style="color:#94a3b8;font-size:12px">€/mois</span>
         <button class="delete" title="Supprimer">×</button>
       `;
-      const [title,input] = row.querySelectorAll('input');
+      const inputs = row.querySelectorAll('input');
+      const title = inputs[0];
+      const amount = inputs[1];
       const del = row.querySelector('.delete');
-      title.addEventListener('input', e => { it.name = e.target.value; changed(); });
-      input.addEventListener('input', e => { it.amount = Number(e.target.value||0); changed(); });
-      del.addEventListener('click', () => { state[kind].splice(idx,1); changed(); renderAll(); });
+      title.addEventListener('input', function(e){ it.name = e.target.value; changed(); });
+      amount.addEventListener('input', function(e){ it.amount = Number(e.target.value||0); changed(); });
+      del.addEventListener('click', function(){ state[kind].splice(idx,1); changed(); renderAll(); });
       container.appendChild(row);
     });
   }
 
-  function addItem(kind, name='', amount=0){
+  function addItem(kind, name, amount){
     if (!Array.isArray(state[kind])) state[kind] = [];
-    state[kind].push({name, amount});
+    state[kind].push({name: name||'', amount: Number(amount||0)});
     renderList(kind); changed();
   }
 
   function renderLeft(){
-    el('revenu').value = state.revenu;
-    el('tauxEpargne').value = state.tauxEpargne;
-    el('foyer').value = state.foyer;
+    $('revenu').value = state.revenu;
+    $('tauxEpargne').value = state.tauxEpargne;
+    $('foyer').value = state.foyer;
     renderList('fixes'); renderList('variables'); renderList('oblig');
     maybeBanner();
   }
@@ -242,14 +246,14 @@
 
   function renderKPIs(){
     const k = compute();
-    el('k_fixes').textContent = €(k.fixes);
-    el('k_variables').textContent = €(k.variables);
-    el('k_oblig').textContent = €(k.oblig);
-    el('k_epargne').textContent = €(k.epargnePot);
-    el('k_taux').textContent = isFinite(k.taux) ? k.taux.toFixed(1)+' %' : '—';
+    $('k_fixes').textContent = formatEUR(k.fixes);
+    $('k_variables').textContent = formatEUR(k.variables);
+    $('k_oblig').textContent = formatEUR(k.oblig);
+    $('k_epargne').textContent = formatEUR(k.epargnePot);
+    $('k_taux').textContent = (isFinite(k.taux) ? k.taux.toFixed(1)+' %' : '—');
   }
 
-  const chart = new Chart(el('chart'), {
+  const chart = new Chart($('chart'), {
     type:'doughnut',
     data:{ labels:['Fixes','Variables','Obligatoires','Épargne'],
       datasets:[{ data:[0,0,0,0], backgroundColor:['#22c55e','#f59e0b','#fb7185','#60a5fa'] }]
@@ -267,11 +271,11 @@
     const k = compute();
     const tips = [];
     const bFixes = 0.50 * k.revenu, bVars = 0.30 * k.revenu, bSave = 0.20 * k.revenu;
-    if (k.fixes > bFixes) tips.push(`🔧 Tes <b>fixes</b> dépassent 50 % (${€(k.fixes)} vs ${€(bFixes)}). Renégocier box/forfaits, assurances, énergie, trier abonnements.`);
-    if (k.variables > bVars) tips.push(`🍽️ Tes <b>variables</b> dépassent 30 % (${€(k.variables)} vs ${€(bVars)}). Liste de courses, plafonds hebdo, batch cooking.`);
-    if (k.epargnePot < bSave) tips.push(`💰 Épargne potentielle ${€(k.epargnePot)} (< ${€(bSave)} visés). Automatise ${state.tauxEpargne}% le jour de paye.`);
+    if (k.fixes > bFixes) tips.push(`🔧 Tes <b>fixes</b> dépassent 50 % (${formatEUR(k.fixes)} vs ${formatEUR(bFixes)}). Renégocier box/forfaits, assurances, énergie, trier abonnements.`);
+    if (k.variables > bVars) tips.push(`🍽️ Tes <b>variables</b> dépassent 30 % (${formatEUR(k.variables)} vs ${formatEUR(bVars)}). Liste de courses, plafonds hebdo, batch cooking.`);
+    if (k.epargnePot < bSave) tips.push(`💰 Épargne potentielle ${formatEUR(k.epargnePot)} (< ${formatEUR(bSave)} visés). Automatise ${state.tauxEpargne}% le jour de paye.`);
     const sub = (state.fixes||[]).find(x => /abonnements?|netflix|prime|canal|spotify|disney/i.test(x.name||''));
-    if (sub && sub.amount >= 25) tips.push(`📺 Abonnements à ${€(sub.amount)} : partage familial, offres annuelles, mettre en pause 1–2 mois/12.`);
+    if (sub && sub.amount >= 25) tips.push(`📺 Abonnements à ${formatEUR(sub.amount)} : partage familial, offres annuelles, mettre en pause 1–2 mois/12.`);
     const list = document.getElementById('tips');
     list.innerHTML = tips.length ? tips.map(t => `<li>${t}</li>`).join('') : '<li>Aucune alerte — budget ok 👌</li>';
   }
@@ -293,39 +297,40 @@
   function changed(){ save(); maybeBanner(); renderAll(); }
 
   // Bind inputs
-  el('revenu').addEventListener('input', e => { state.revenu = Number(e.target.value||0); changed(); });
-  el('tauxEpargne').addEventListener('input', e => { state.tauxEpargne = Number(e.target.value||0); changed(); });
-  el('foyer').addEventListener('change', e => { state.foyer = Number(e.target.value); changed(); });
-  el('addFixe').addEventListener('click', ()=> addItem('fixes'));
-  el('addVariable').addEventListener('click', ()=> addItem('variables'));
-  el('addOblig').addEventListener('click', ()=> addItem('oblig'));
+  $('revenu').addEventListener('input', function(e){ state.revenu = Number(e.target.value||0); changed(); });
+  $('tauxEpargne').addEventListener('input', function(e){ state.tauxEpargne = Number(e.target.value||0); changed(); });
+  $('foyer').addEventListener('change', function(e){ state.foyer = Number(e.target.value); changed(); });
+  $('addFixe').addEventListener('click', function(){ addItem('fixes'); });
+  $('addVariable').addEventListener('click', function(){ addItem('variables'); });
+  $('addOblig').addEventListener('click', function(){ addItem('oblig'); });
 
   // Reset / Clear
-  el('reset').addEventListener('click', ()=>{ state = JSON.parse(JSON.stringify(defaults)); renderLeft(); changed(); });
-  el('clear').addEventListener('click', ()=>{ localStorage.removeItem(KEY); state = JSON.parse(JSON.stringify(defaults)); renderLeft(); changed(); });
+  $('reset').addEventListener('click', function(){ state = JSON.parse(JSON.stringify(defaults)); renderLeft(); changed(); });
+  $('clear').addEventListener('click', function(){ localStorage.removeItem(KEY); state = JSON.parse(JSON.stringify(defaults)); renderLeft(); changed(); });
 
   // Share & CSV
-  el('share').addEventListener('click', ()=>{
+  $('share').addEventListener('click', function(){
     const k = compute();
-    const text = `Budget — Revenu: ${€(k.revenu)} | Fixes: ${€(k.fixes)} | Variables: ${€(k.variables)} | Obligatoires: ${€(k.oblig)} | Épargne: ${€(k.epargnePot)} (${k.taux.toFixed(1)}%)`;
-    if(navigator.share){ navigator.share({text}).catch(()=>{}); }
+    const text = `Budget — Revenu: ${formatEUR(k.revenu)} | Fixes: ${formatEUR(k.fixes)} | Variables: ${formatEUR(k.variables)} | Obligatoires: ${formatEUR(k.oblig)} | Épargne: ${formatEUR(k.epargnePot)} (${k.taux.toFixed(1)}%)`;
+    if(navigator.share){ navigator.share({text:text}).catch(function(){}); }
     else if(navigator.clipboard){ navigator.clipboard.writeText(text); alert('Résumé copié 📋'); }
   });
-  el('csv').addEventListener('click', ()=>{
+  $('csv').addEventListener('click', function(){
     const rows = [['Categorie','Intitulé','Mensuel','Type']];
-    (state.fixes||[]).forEach(x=>rows.push(['Fixe',x.name,x.amount,'Fixe']));
-    (state.variables||[]).forEach(x=>rows.push(['Variable',x.name,x.amount,'Variable']));
-    (state.oblig||[]).forEach(x=>rows.push(['Obligatoire',x.name,x.amount,'Obligatoire']));
-    const csv = rows.map(r=>r.join(',')).join('\n');
+    (state.fixes||[]).forEach(function(x){ rows.push(['Fixe',x.name,x.amount,'Fixe']); });
+    (state.variables||[]).forEach(function(x){ rows.push(['Variable',x.name,x.amount,'Variable']); });
+    (state.oblig||[]).forEach(function(x){ rows.push(['Obligatoire',x.name,x.amount,'Obligatoire']); });
+    const csv = rows.map(function(r){ return r.join(','); }).join('\n');
     const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
     const url = URL.createObjectURL(blob); const a = document.createElement('a');
     a.href=url; a.download='budget.csv'; document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
   });
 
-  // Initial render
+  // Initial render after DOM ready
+  function renderLeft(){ $('revenu').value = state.revenu; $('tauxEpargne').value = state.tauxEpargne; $('foyer').value = state.foyer; renderList('fixes'); renderList('variables'); renderList('oblig'); maybeBanner(); }
   function init(){ renderLeft(); renderAll(); }
-  // Ensure we run after DOM is ready even if script loads in head on some hosts
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
+
 })();
 </script>
 </body>
