@@ -3,23 +3,15 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Simulateur d’épargne — Kevin Croy</title>
+  <title>Budget & Économies — Kevin Croy</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
   <style>
     :root{
-      --bg: #0c1117;
-      --panel: #121826;
-      --muted:#9aa3b2;
-      --text:#e8edf2;
-      --outline: rgba(255,255,255,.08);
-      --ring: rgba(46, 168, 255, .25);
-      --grey:#cbd5e1;     /* Versements */
-      --green:#22c55e;    /* Portefeuille */
-      --blue:#60a5fa;     /* Portefeuille réel */
-      --amber:#f59e0b;    /* Livret A */
-      --amberLight:#fbbf24; /* Livret A réel */
+      --bg:#0c1117; --panel:#121826; --muted:#9aa3b2; --text:#e8edf2;
+      --outline:rgba(255,255,255,.08); --ring:rgba(46,168,255,.25);
+      --green:#22c55e; --blue:#60a5fa; --amber:#f59e0b; --rose:#fb7185; --grey:#cbd5e1;
     }
     *{box-sizing:border-box}
     html,body{height:100%;margin:0;background:#0c1117;color:var(--text);font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}
@@ -31,288 +23,309 @@
     .spacer{flex:1}
     .btn{background:#111827;border:1px solid var(--outline);color:var(--text);padding:8px 12px;border-radius:10px;cursor:pointer}
     .btn.primary{background:linear-gradient(90deg,#16a34a,#22c55e);color:#06240f;border:none;font-weight:700}
-    .wrap{max-width:1200px;margin:0 auto;padding:22px 16px 60px}
+    .btn.warn{background:#1f2937;border:1px solid #334155}
+    .wrap{max-width:1200px;margin:0 auto;padding:20px 16px 80px}
     .grid{display:grid;grid-template-columns:1fr;gap:16px}
-    @media(min-width:1100px){.grid{grid-template-columns:360px 1fr}}
+    @media(min-width:1100px){.grid{grid-template-columns:380px 1fr}}
     .card{background:linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,.03));border:1px solid var(--outline);border-radius:16px;padding:16px}
-    .row{display:grid;grid-template-columns:1fr 140px;gap:8px;align-items:center;margin-top:8px}
+    .row{display:grid;grid-template-columns:1fr 140px;gap:10px;align-items:center;margin-top:8px}
     label{font-size:13px;color:var(--muted)}
     input,select{width:140px;padding:10px;border-radius:10px;border:1px solid var(--outline);background:#0f1522;color:var(--text);outline:none}
     input:focus,select:focus{border-color:#2ea8ff;box-shadow:0 0 0 4px var(--ring)}
-    .toggle{display:flex;align-items:center;gap:8px;margin-top:8px}
-    .legend{display:flex;gap:14px;flex-wrap:wrap;margin:10px 0}
-    .dotLegend{width:10px;height:10px;border-radius:50%;display:inline-block}
     .hr{height:1px;background:var(--outline);margin:10px 0}
-    .kpis{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-bottom:8px}
+    .legend{display:flex;gap:14px;flex-wrap:wrap;margin:6px 0 8px}
+    .dotLegend{width:10px;height:10px;border-radius:50%;display:inline-block}
+    .kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:10px}
     .kpi{background:rgba(255,255,255,.04);border:1px solid var(--outline);border-radius:12px;padding:10px}
     .kpi .lab{font-size:12px;color:var(--muted)}
     .kpi .val{font-size:18px;font-weight:700;margin-top:2px}
+    .section{margin-top:10px}
+    .secHead{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+    .pill{font-size:12px;padding:6px 10px;border-radius:999px;border:1px solid var(--outline);color:var(--muted)}
+    .list{display:grid;gap:10px}
+    .item{display:grid;grid-template-columns:1fr 110px 110px 28px;gap:8px;align-items:center}
+    .item input[type="text"]{width:100%;padding:10px;border-radius:10px;border:1px solid var(--outline);background:#0f1522;color:var(--text)}
+    .delete{background:#1f2937;border:1px solid #334155;color:#fda4af;border-radius:8px;cursor:pointer}
+    .addRow{margin-top:8px}
     table{width:100%;border-collapse:collapse}
     thead th{background:rgba(255,255,255,.05);padding:10px;color:#cbd5e1;text-align:left}
     tbody td{border-top:1px solid var(--outline);padding:10px;color:#dbe2ea}
-    .danger{background:#1b2836;border:1px solid #2b3b4f}
+    .tip{font-size:13px;color:#cfe8ff}
+    .banner{background:#0b1220;border:1px solid var(--outline);border-radius:10px;padding:8px 10px;color:#cfe8ff;margin-bottom:8px;display:none}
   </style>
 </head>
 <body>
 <header>
   <div class="bar">
     <div class="dot"></div>
-    <h1>Simulateur d’épargne — <strong>Kevin Croy</strong></h1>
-    <span class="badge">Compte d’investissement</span>
-    <span class="badge">Livret classique (type Livret A)</span>
+    <h1>Budget & Économies — <strong>Kevin Croy</strong></h1>
+    <span class="badge">Fixes</span>
+    <span class="badge">Variables</span>
+    <span class="badge">Obligatoires</span>
     <div class="spacer"></div>
-    <button id="csvTop" class="btn primary">Exporter CSV</button>
+    <button id="share" class="btn">Partager</button>
+    <button id="csv" class="btn primary">Exporter CSV</button>
   </div>
 </header>
 
 <div class="wrap">
   <div class="grid">
-    <!-- LEFT: Controls -->
+    <!-- LEFT: Inputs -->
     <div class="card">
-      <h3 style="margin:0 0 6px">Compte d’investissement</h3>
-      <div class="row"><label>Capital initial (€)</label><input id="capital" type="number" value="300"></div>
-      <div class="row"><label>Versement mensuel (€)</label><input id="mensuel" type="number" value="50"></div>
-      <div class="row"><label>Taux annuel (%)</label><input id="tauxAnnuel" type="number" step="0.1" value="11"></div>
-      <div class="row"><label>Frais annuels (%)</label><input id="fraisAnnuel" type="number" step="0.05" value="0.3"></div>
-      <div class="row"><label>Inflation (%)</label><input id="inflationAnnuel" type="number" step="0.1" value="2"></div>
-      <div class="row"><label>Durée (années)</label><input id="duree" type="number" min="1" value="10"></div>
-      <div class="toggle"><input id="debutPeriode" type="checkbox" checked><label for="debutPeriode">Versement en début de période</label></div>
+      <div id="banner" class="banner">💡 Si tu ne vois pas de lignes par défaut, clique sur <b>“Effacer la sauvegarde”</b> pour repartir d’un modèle pré-rempli.</div>
+      <div class="row"><label>Revenu net mensuel (€)</label><input id="revenu" type="number" value="2500"></div>
+      <div class="row"><label>Taux d’épargne cible (%)</label><input id="tauxEpargne" type="number" value="20"></div>
+      <div class="row"><label>Taille du foyer</label>
+        <select id="foyer"><option>1</option><option>2</option><option selected>3</option><option>4</option><option>5</option></select>
+      </div>
       <div class="hr"></div>
-      <h3 style="margin:0 0 6px">Livret classique (type Livret A)</h3>
-      <div class="toggle"><input id="showLA" type="checkbox" checked><label for="showLA">Afficher la courbe Livret A</label></div>
-      <div class="row"><label>Taux annuel (%)</label><input id="tauxLA" type="number" step="0.05" value="3"></div>
+
+      <div class="section">
+        <div class="secHead"><h3 style="margin:0">Dépenses fixes</h3><span class="pill">loyer, assurances, abonnements…</span></div>
+        <div id="listFixes" class="list"></div>
+        <button id="addFixe" class="btn addRow">+ Ajouter une dépense fixe</button>
+      </div>
+
+      <div class="section">
+        <div class="secHead"><h3 style="margin:0">Dépenses variables</h3><span class="pill">courses, sorties, carburant…</span></div>
+        <div id="listVariables" class="list"></div>
+        <button id="addVariable" class="btn addRow">+ Ajouter une dépense variable</button>
+      </div>
+
+      <div class="section">
+        <div class="secHead"><h3 style="margin:0">Obligatoires</h3><span class="pill">impôts, remboursements, cantine…</span></div>
+        <div id="listOblig" class="list"></div>
+        <button id="addOblig" class="btn addRow">+ Ajouter une dépense obligatoire</button>
+      </div>
+
       <div class="hr"></div>
-      <button id="clearSaved" class="btn danger">Effacer les valeurs sauvegardées</button>
+      <div class="section">
+        <button id="reset" class="btn warn">Réinitialiser (conserver sauvegarde)</button>
+        <button id="clear" class="btn warn">Effacer la sauvegarde</button>
+      </div>
     </div>
 
-    <!-- RIGHT: KPIs + chart -->
+    <!-- RIGHT: KPIs + Charts + Insights -->
     <div class="card">
       <div class="kpis">
-        <div class="kpi"><div class="lab">Valeur finale (invest.)</div><div id="k_final_inv" class="val">—</div></div>
-        <div class="kpi"><div class="lab">Intérêts cumulés</div><div id="k_interest_inv" class="val">—</div></div>
-        <div class="kpi"><div class="lab">Versements cumulés</div><div id="k_deposits" class="val">—</div></div>
-        <div class="kpi"><div class="lab">Valeur réelle (invest.)</div><div id="k_real_inv" class="val">—</div></div>
-        <div class="kpi"><div class="lab">Valeur finale (Livret A)</div><div id="k_final_la" class="val">—</div></div>
-        <div class="kpi"><div class="lab">Valeur réelle (Livret A)</div><div id="k_real_la" class="val">—</div></div>
+        <div class="kpi"><div class="lab">Dépenses fixes</div><div id="k_fixes" class="val">—</div></div>
+        <div class="kpi"><div class="lab">Variables</div><div id="k_variables" class="val">—</div></div>
+        <div class="kpi"><div class="lab">Obligatoires</div><div id="k_oblig" class="val">—</div></div>
+        <div class="kpi"><div class="lab">Épargne potentielle</div><div id="k_epargne" class="val">—</div></div>
+        <div class="kpi"><div class="lab">Taux d’épargne</div><div id="k_taux" class="val">—</div></div>
       </div>
 
       <div class="legend">
-        <span><span class="dotLegend" style="background:var(--grey)"></span> Versements</span>
-        <span><span class="dotLegend" style="background:var(--green)"></span> Portefeuille</span>
-        <span><span class="dotLegend" style="background:var(--blue)"></span> Portefeuille réel</span>
-        <span><span class="dotLegend" style="background:var(--amber)"></span> Livret A</span>
-        <span><span class="dotLegend" style="background:var(--amberLight)"></span> Livret A réel</span>
+        <span><span class="dotLegend" style="background:var(--green)"></span> Fixes</span>
+        <span><span class="dotLegend" style="background:var(--amber)"></span> Variables</span>
+        <span><span class="dotLegend" style="background:var(--rose)"></span> Obligatoires</span>
+        <span><span class="dotLegend" style="background:var(--blue)"></span> Épargne</span>
       </div>
-      <div style="height:340px"><canvas id="chart"></canvas></div>
-    </div>
-  </div>
+      <div style="height:300px"><canvas id="chart"></canvas></div>
 
-  <div class="card" style="margin-top:16px">
-    <h3 style="margin:0 0 8px">Tableau mensuel</h3>
-    <table>
-      <thead><tr><th>Période</th><th>Versement</th><th>Intérêts (brut)</th><th>Frais (est.)</th><th>Total fin période</th></tr></thead>
-      <tbody id="tbody"></tbody>
-    </table>
+      <div class="hr"></div>
+      <h3 style="margin:0 0 8px">Opportunités d’économies (auto)</h3>
+      <ul id="tips" class="tip"></ul>
+
+      <div class="hr"></div>
+      <h3 style="margin:0 0 8px">Vue détaillée</h3>
+      <div style="overflow:auto">
+        <table id="tab">
+          <thead><tr><th>Catégorie</th><th>Intitulé</th><th>Mensuel (€)</th><th>Fixe/Variable/Oblig.</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
   </div>
 </div>
 
 <script>
 (function(){
-  const KEY = 'simu-epargne-v1';
-  const els = {
-    capital: document.getElementById('capital'),
-    mensuel: document.getElementById('mensuel'),
-    tauxAnnuel: document.getElementById('tauxAnnuel'),
-    fraisAnnuel: document.getElementById('fraisAnnuel'),
-    inflationAnnuel: document.getElementById('inflationAnnuel'),
-    duree: document.getElementById('duree'),
-    debutPeriode: document.getElementById('debutPeriode'),
-    showLA: document.getElementById('showLA'),
-    tauxLA: document.getElementById('tauxLA'),
-    k_final_inv: document.getElementById('k_final_inv'),
-    k_interest_inv: document.getElementById('k_interest_inv'),
-    k_deposits: document.getElementById('k_deposits'),
-    k_real_inv: document.getElementById('k_real_inv'),
-    k_final_la: document.getElementById('k_final_la'),
-    k_real_la: document.getElementById('k_real_la'),
-    tbody: document.getElementById('tbody'),
-    csvTop: document.getElementById('csvTop'),
-    clearSaved: document.getElementById('clearSaved')
+  const KEY='budget-v1';
+  const € = n => new Intl.NumberFormat('fr-FR',{style:'currency',currency:'EUR',maximumFractionDigits:0}).format(n||0);
+  const el = id => document.getElementById(id);
+
+  // Defaults
+  const defaults = {
+    revenu: 2500, tauxEpargne: 20, foyer: 3,
+    fixes: [
+      {name:'Loyer / Crédit logement', amount: 950},
+      {name:'Assurance habitation', amount: 20},
+      {name:'Assurance auto', amount: 55},
+      {name:'Électricité + gaz', amount: 90},
+      {name:'Forfaits mobiles', amount: 40},
+      {name:'Internet', amount: 30},
+      {name:'Abonnements (SVOD, musique…)', amount: 35},
+      {name:'Mutuelle santé', amount: 45},
+    ],
+    variables: [
+      {name:'Courses', amount: 450},
+      {name:'Carburant / Transports', amount: 120},
+      {name:'Restaurants / Cafés', amount: 120},
+      {name:'Loisirs / Sport', amount: 60},
+      {name:'Divers', amount: 80},
+    ],
+    oblig: [
+      {name:'Impôt mensuel', amount: 150},
+      {name:'Cantine / Crèche', amount: 120},
+      {name:'Remboursement crédit conso', amount: 90},
+    ]
   };
 
-  // Load saved state if present
-  try {
-    const saved = JSON.parse(localStorage.getItem(KEY) || '{}');
-    for (const [k,v] of Object.entries(saved)) {
-      if (k in els && els[k] instanceof HTMLInputElement) {
-        if (els[k].type === 'checkbox') els[k].checked = !!v;
-        else els[k].value = v;
-      }
-    }
-  } catch(e) { /* ignore */ }
+  // Merge saved with defaults safely
+  function loadSaved(){
+    try { return JSON.parse(localStorage.getItem(KEY)||'null'); } catch(e){ return null; }
+  }
+  const saved = loadSaved() || {};
+  let state = {
+    ...defaults,
+    ...saved,
+    fixes: Array.isArray(saved.fixes) ? saved.fixes : defaults.fixes.slice(),
+    variables: Array.isArray(saved.variables) ? saved.variables : defaults.variables.slice(),
+    oblig: Array.isArray(saved.oblig) ? saved.oblig : defaults.oblig.slice()
+  };
 
-  const ctx = document.getElementById('chart').getContext('2d');
-  const chart = new Chart(ctx, {
-    type:'line',
-    data:{
-      labels:[],
-      datasets:[
-        {label:'Versements', data:[], borderColor:getCss('--grey'), pointRadius:0, tension:.25},
-        {label:'Portefeuille', data:[], borderColor:getCss('--green'), pointRadius:0, tension:.25},
-        {label:'Portefeuille réel', data:[], borderColor:getCss('--blue'), pointRadius:0, tension:.25},
-        {label:'Livret A', data:[], borderColor:getCss('--amber'), pointRadius:0, tension:.25},
-        {label:'Livret A réel', data:[], borderColor:getCss('--amberLight'), pointRadius:0, tension:.25}
-      ]
+  // Elements
+  const lists = { fixes: el('listFixes'), variables: el('listVariables'), oblig: el('listOblig') };
+  const banner = el('banner');
+
+  function maybeBanner(){
+    const empty = (!state.fixes?.length) && (!state.variables?.length) && (!state.oblig?.length);
+    banner.style.display = empty ? 'block' : 'none';
+  }
+
+  function renderList(kind){
+    if (!Array.isArray(state[kind])) state[kind] = [];
+    const container = lists[kind];
+    container.innerHTML = '';
+    state[kind].forEach((it, idx) => {
+      const row = document.createElement('div');
+      row.className = 'item';
+      row.innerHTML = `
+        <input type="text" value="${it.name||''}" placeholder="Intitulé">
+        <input type="number" value="${Number(it.amount||0)}" min="0" step="1">
+        <span style="color:#94a3b8;font-size:12px">€/mois</span>
+        <button class="delete" title="Supprimer">×</button>
+      `;
+      const [title,input] = row.querySelectorAll('input');
+      const del = row.querySelector('.delete');
+      title.addEventListener('input', e => { it.name = e.target.value; changed(); });
+      input.addEventListener('input', e => { it.amount = Number(e.target.value||0); changed(); });
+      del.addEventListener('click', () => { state[kind].splice(idx,1); changed(); renderAll(); });
+      container.appendChild(row);
+    });
+  }
+
+  function addItem(kind, name='', amount=0){
+    if (!Array.isArray(state[kind])) state[kind] = [];
+    state[kind].push({name, amount});
+    renderList(kind); changed();
+  }
+
+  function renderLeft(){
+    el('revenu').value = state.revenu;
+    el('tauxEpargne').value = state.tauxEpargne;
+    el('foyer').value = state.foyer;
+    renderList('fixes'); renderList('variables'); renderList('oblig');
+    maybeBanner();
+  }
+
+  function sum(arr){ return (Array.isArray(arr)?arr:[]).reduce((a,b)=> a + Number(b.amount||0), 0); }
+  function compute(){
+    const fixes = sum(state.fixes), variables = sum(state.variables), oblig = sum(state.oblig);
+    const depenses = fixes + variables + oblig;
+    const revenu = Number(state.revenu||0);
+    const epargnePot = Math.max(0, revenu - depenses);
+    const taux = revenu>0 ? (epargnePot / revenu * 100) : 0;
+    return {fixes, variables, oblig, depenses, revenu, epargnePot, taux};
+  }
+
+  function renderKPIs(){
+    const k = compute();
+    el('k_fixes').textContent = €(k.fixes);
+    el('k_variables').textContent = €(k.variables);
+    el('k_oblig').textContent = €(k.oblig);
+    el('k_epargne').textContent = €(k.epargnePot);
+    el('k_taux').textContent = isFinite(k.taux) ? k.taux.toFixed(1)+' %' : '—';
+  }
+
+  const chart = new Chart(el('chart'), {
+    type:'doughnut',
+    data:{ labels:['Fixes','Variables','Obligatoires','Épargne'],
+      datasets:[{ data:[0,0,0,0], backgroundColor:['#22c55e','#f59e0b','#fb7185','#60a5fa'] }]
     },
-    options:{
-      responsive:true, maintainAspectRatio:false,
-      scales:{
-        x:{ grid:{color:'rgba(255,255,255,.06)'}, ticks:{color:'#9aa3b2', callback:(v,i)=> i%12===0? (i/12).toString(): ''}},
-        y:{ grid:{color:'rgba(255,255,255,.06)'}, ticks:{color:'#9aa3b2'} }
-      },
-      plugins:{legend:{display:false}}
-    }
+    options:{plugins:{legend:{labels:{color:'#dbe2ea'}}}}
   });
 
-  function getCss(v){ return getComputedStyle(document.documentElement).getPropertyValue(v).trim(); }
-  const fmtMoney = n => new Intl.NumberFormat('fr-FR',{style:'currency',currency:'EUR',maximumFractionDigits:0}).format(n);
-  const monthlyRate = a => Math.pow(1 + a/100, 1/12) - 1;
-
-  function simulateInvestment({capital, mensuel, tauxAnnuel, fraisAnnuel, inflationAnnuel, duree, debutPeriode}){
-    const months = Math.max(1, Math.round(duree*12));
-    const r = monthlyRate(tauxAnnuel);
-    const i = monthlyRate(inflationAnnuel);
-    const fEff = monthlyRate(Math.max(0, fraisAnnuel));
-
-    let bal = capital;
-    let invested = capital;
-    let inflationFactor = 1;
-
-    const deposits=[], portfolio=[], real=[], rows=[];
-
-    for(let m=1; m<=months; m++){
-      if(debutPeriode){ bal+=mensuel; invested+=mensuel; }
-      const before = bal;
-      const afterInterest = bal * (1 + r);
-      const afterFee = afterInterest * (1 - fEff);
-      const interestBrut = afterInterest - before;
-      const feeAmt = afterInterest - afterFee;
-      bal = afterFee;
-      if(!debutPeriode){ bal+=mensuel; invested+=mensuel; }
-      inflationFactor *= (1 + i);
-
-      deposits.push(invested);
-      portfolio.push(bal);
-      real.push(bal / inflationFactor);
-      rows.push({p:m, dep:mensuel, interets:Math.max(0, Math.round(interestBrut)), frais:Math.round(feeAmt), total:Math.round(bal)});
-    }
-    return {months, deposits, portfolio, real, invested, final:bal, realFinal: real[real.length-1], interest: bal - invested, rows};
-  }
-
-  function simulateLivretA({capital, mensuel, tauxLA, inflationAnnuel, duree, debutPeriode}){
-    const months = Math.max(1, Math.round(duree*12));
-    const r = monthlyRate(tauxLA);
-    const i = monthlyRate(inflationAnnuel);
-    let bal = capital;
-    let inflationFactor = 1;
-    const series=[], real=[];
-
-    for(let m=1; m<=months; m++){
-      if(debutPeriode){ bal+=mensuel; }
-      bal *= (1 + r);
-      if(!debutPeriode){ bal+=mensuel; }
-      inflationFactor *= (1 + i);
-      series.push(bal);
-      real.push(bal / inflationFactor);
-    }
-    return {series, real, final: bal, realFinal: real[real.length-1]};
-  }
-
-  function getParams(){
-    return {
-      capital: Number(els.capital.value||0),
-      mensuel: Number(els.mensuel.value||0),
-      tauxAnnuel: Number(els.tauxAnnuel.value||0),
-      fraisAnnuel: Number(els.fraisAnnuel.value||0),
-      inflationAnnuel: Number(els.inflationAnnuel.value||0),
-      duree: Number(els.duree.value||1),
-      debutPeriode: els.debutPeriode.checked,
-      tauxLA: Number(els.tauxLA.value||0),
-      showLA: els.showLA.checked
-    };
-  }
-
-  function save(){
-    const data = getParams();
-    try { localStorage.setItem(KEY, JSON.stringify(data)); } catch(e){/* ignore quota */}
-  }
-
-  function render(){
-    const p = getParams();
-    const inv = simulateInvestment(p);
-    const la  = p.showLA ? simulateLivretA(p) : {series:[], real:[], final:0, realFinal:0};
-
-    chart.data.labels = Array.from({length: inv.months}, (_,i)=> i+1);
-    chart.data.datasets[0].data = inv.deposits;
-    chart.data.datasets[1].data = inv.portfolio;
-    chart.data.datasets[2].data = inv.real;
-    chart.data.datasets[3].data = la.series;
-    chart.data.datasets[4].data = la.real;
+  function renderChart(){
+    const k = compute();
+    chart.data.datasets[0].data = [k.fixes, k.variables, k.oblig, Math.max(0,k.epargnePot)];
     chart.update('none');
-
-    els.k_final_inv.textContent   = fmtMoney(inv.final);
-    els.k_interest_inv.textContent= fmtMoney(inv.interest);
-    els.k_deposits.textContent    = fmtMoney(inv.invested);
-    els.k_real_inv.textContent    = fmtMoney(inv.realFinal);
-    els.k_final_la.textContent    = p.showLA ? fmtMoney(la.final) : '—';
-    els.k_real_la.textContent     = p.showLA ? fmtMoney(la.realFinal) : '—';
-
-    els.tbody.innerHTML = inv.rows.map(r => `<tr><td>${r.p}</td><td>${fmtMoney(r.dep)}</td><td>${fmtMoney(r.interets)}</td><td>${fmtMoney(r.frais)}</td><td>${fmtMoney(r.total)}</td></tr>`).join('');
   }
 
-  function exportCsv(){
-    const rows = [['Periode','Versement','InteretsBrut','Frais','TotalFinPeriode']];
-    document.querySelectorAll('#tbody tr').forEach(tr => {
-      rows.push([...tr.children].map(td => td.textContent.replace(/\s/g,'')));
-    });
+  function renderTips(){
+    const k = compute();
+    const tips = [];
+    const bFixes = 0.50 * k.revenu, bVars = 0.30 * k.revenu, bSave = 0.20 * k.revenu;
+    if (k.fixes > bFixes) tips.push(`🔧 Tes <b>fixes</b> dépassent 50 % (${€(k.fixes)} vs ${€(bFixes)}). Renégocier box/forfaits, assurances, énergie, trier abonnements.`);
+    if (k.variables > bVars) tips.push(`🍽️ Tes <b>variables</b> dépassent 30 % (${€(k.variables)} vs ${€(bVars)}). Liste de courses, plafonds hebdo, batch cooking.`);
+    if (k.epargnePot < bSave) tips.push(`💰 Épargne potentielle ${€(k.epargnePot)} (< ${€(bSave)} visés). Automatise ${state.tauxEpargne}% le jour de paye.`);
+    const sub = (state.fixes||[]).find(x => /abonnements?|netflix|prime|canal|spotify|disney/i.test(x.name||''));
+    if (sub && sub.amount >= 25) tips.push(`📺 Abonnements à ${€(sub.amount)} : partage familial, offres annuelles, mettre en pause 1–2 mois/12.`);
+    const list = document.getElementById('tips');
+    list.innerHTML = tips.length ? tips.map(t => `<li>${t}</li>`).join('') : '<li>Aucune alerte — budget ok 👌</li>';
+  }
+
+  function renderTable(){
+    const tbody = document.querySelector('#tab tbody');
+    const safe = a => Array.isArray(a)?a:[];
+    const row = (cat, it, type) => `<tr><td>${cat}</td><td>${it.name||''}</td><td>${(it.amount||0).toFixed(0)}</td><td>${type}</td></tr>`;
+    tbody.innerHTML = [
+      ...safe(state.fixes).map(it=>row('Fixe', it, 'Fixe')),
+      ...safe(state.variables).map(it=>row('Variable', it, 'Variable')),
+      ...safe(state.oblig).map(it=>row('Obligatoire', it, 'Obligatoire')),
+    ].join('');
+  }
+
+  function renderAll(){ renderKPIs(); renderChart(); renderTips(); renderTable(); }
+
+  function save(){ try{ localStorage.setItem(KEY, JSON.stringify(state)); }catch(e){} }
+  function changed(){ save(); maybeBanner(); renderAll(); }
+
+  // Bind inputs
+  el('revenu').addEventListener('input', e => { state.revenu = Number(e.target.value||0); changed(); });
+  el('tauxEpargne').addEventListener('input', e => { state.tauxEpargne = Number(e.target.value||0); changed(); });
+  el('foyer').addEventListener('change', e => { state.foyer = Number(e.target.value); changed(); });
+  el('addFixe').addEventListener('click', ()=> addItem('fixes'));
+  el('addVariable').addEventListener('click', ()=> addItem('variables'));
+  el('addOblig').addEventListener('click', ()=> addItem('oblig'));
+
+  // Reset / Clear
+  el('reset').addEventListener('click', ()=>{ state = JSON.parse(JSON.stringify(defaults)); renderLeft(); changed(); });
+  el('clear').addEventListener('click', ()=>{ localStorage.removeItem(KEY); state = JSON.parse(JSON.stringify(defaults)); renderLeft(); changed(); });
+
+  // Share & CSV
+  el('share').addEventListener('click', ()=>{
+    const k = compute();
+    const text = `Budget — Revenu: ${€(k.revenu)} | Fixes: ${€(k.fixes)} | Variables: ${€(k.variables)} | Obligatoires: ${€(k.oblig)} | Épargne: ${€(k.epargnePot)} (${k.taux.toFixed(1)}%)`;
+    if(navigator.share){ navigator.share({text}).catch(()=>{}); }
+    else if(navigator.clipboard){ navigator.clipboard.writeText(text); alert('Résumé copié 📋'); }
+  });
+  el('csv').addEventListener('click', ()=>{
+    const rows = [['Categorie','Intitulé','Mensuel','Type']];
+    (state.fixes||[]).forEach(x=>rows.push(['Fixe',x.name,x.amount,'Fixe']));
+    (state.variables||[]).forEach(x=>rows.push(['Variable',x.name,x.amount,'Variable']));
+    (state.oblig||[]).forEach(x=>rows.push(['Obligatoire',x.name,x.amount,'Obligatoire']));
     const csv = rows.map(r=>r.join(',')).join('\n');
     const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url; a.download = 'simulation_epargne.csv';
-    document.body.appendChild(a); a.click(); document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  }
-
-  // Wire events + autosave
-  ['input','change'].forEach(evt => {
-    Object.values({
-      cap:els.capital, men:els.mensuel, t:els.tauxAnnuel, f:els.fraisAnnuel, inf:els.inflationAnnuel,
-      d:els.duree, deb:els.debutPeriode, show:els.showLA, tLA:els.tauxLA
-    }).forEach(el => el.addEventListener(evt, () => { save(); render(); }));
+    const url = URL.createObjectURL(blob); const a = document.createElement('a');
+    a.href=url; a.download='budget.csv'; document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
   });
 
-  els.csvTop.addEventListener('click', exportCsv);
-  els.clearSaved.addEventListener('click', () => {
-    localStorage.removeItem(KEY);
-    // Reset to defaults
-    els.capital.value = 300;
-    els.mensuel.value = 50;
-    els.tauxAnnuel.value = 11;
-    els.fraisAnnuel.value = 0.3;
-    els.inflationAnnuel.value = 2;
-    els.duree.value = 10;
-    els.debutPeriode.checked = true;
-    els.showLA.checked = true;
-    els.tauxLA.value = 3;
-    save();
-    render();
-  });
-
-  // Initial draw
-  render();
-  // Save initial state if nothing saved
-  save();
+  // Initial render
+  function init(){ renderLeft(); renderAll(); }
+  // Ensure we run after DOM is ready even if script loads in head on some hosts
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
 })();
 </script>
 </body>
