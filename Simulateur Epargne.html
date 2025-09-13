@@ -1,0 +1,284 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Simulateur d’épargne — Kevin Croy</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+  <style>
+    :root{
+      --bg: #0c1117;
+      --panel: #121826;
+      --muted:#9aa3b2;
+      --text:#e8edf2;
+      --outline: rgba(255,255,255,.08);
+      --ring: rgba(46, 168, 255, .25);
+      --grey:#cbd5e1;     /* Versements */
+      --green:#22c55e;    /* Portefeuille */
+      --blue:#60a5fa;     /* Portefeuille réel */
+      --amber:#f59e0b;    /* Livret A */
+      --amberLight:#fbbf24; /* Livret A réel */
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%;margin:0;background:#0c1117;color:var(--text);font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}
+    header{position:sticky;top:0;z-index:20;background:#0c1117cc;backdrop-filter:blur(8px);border-bottom:1px solid var(--outline)}
+    header .bar{max-width:1200px;margin:0 auto;padding:12px 16px;display:flex;gap:12px;align-items:center}
+    .dot{width:10px;height:10px;border-radius:50%;background:#22c55e}
+    h1{font-size:18px;margin:0}
+    .badge{border:1px solid var(--outline);color:var(--muted);padding:6px 10px;border-radius:999px;font-size:12px}
+    .spacer{flex:1}
+    .btn{background:#111827;border:1px solid var(--outline);color:var(--text);padding:8px 12px;border-radius:10px;cursor:pointer}
+    .btn.primary{background:linear-gradient(90deg,#16a34a,#22c55e);color:#06240f;border:none;font-weight:700}
+    .wrap{max-width:1200px;margin:0 auto;padding:22px 16px 60px}
+    .grid{display:grid;grid-template-columns:1fr;gap:16px}
+    @media(min-width:1100px){.grid{grid-template-columns:360px 1fr}}
+    .card{background:linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,.03));border:1px solid var(--outline);border-radius:16px;padding:16px}
+    .row{display:grid;grid-template-columns:1fr 140px;gap:8px;align-items:center;margin-top:8px}
+    label{font-size:13px;color:var(--muted)}
+    input,select{width:140px;padding:10px;border-radius:10px;border:1px solid var(--outline);background:#0f1522;color:var(--text);outline:none}
+    input:focus,select:focus{border-color:#2ea8ff;box-shadow:0 0 0 4px var(--ring)}
+    .toggle{display:flex;align-items:center;gap:8px;margin-top:8px}
+    .legend{display:flex;gap:14px;flex-wrap:wrap;margin:10px 0}
+    .dotLegend{width:10px;height:10px;border-radius:50%;display:inline-block}
+    .hr{height:1px;background:var(--outline);margin:10px 0}
+    .kpis{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-bottom:8px}
+    .kpi{background:rgba(255,255,255,.04);border:1px solid var(--outline);border-radius:12px;padding:10px}
+    .kpi .lab{font-size:12px;color:var(--muted)}
+    .kpi .val{font-size:18px;font-weight:700;margin-top:2px}
+    table{width:100%;border-collapse:collapse}
+    thead th{background:rgba(255,255,255,.05);padding:10px;color:#cbd5e1;text-align:left}
+    tbody td{border-top:1px solid var(--outline);padding:10px;color:#dbe2ea}
+  </style>
+</head>
+<body>
+<header>
+  <div class="bar">
+    <div class="dot"></div>
+    <h1>Simulateur d’épargne — <strong>Kevin Croy</strong></h1>
+    <span class="badge">Compte d’investissement</span>
+    <span class="badge">Livret classique (type Livret A)</span>
+    <div class="spacer"></div>
+    <button id="csvTop" class="btn primary">Exporter CSV</button>
+  </div>
+</header>
+
+<div class="wrap">
+  <div class="grid">
+    <!-- LEFT: Controls -->
+    <div class="card">
+      <h3 style="margin:0 0 6px">Compte d’investissement</h3>
+      <div class="row"><label>Capital initial (€)</label><input id="capital" type="number" value="300"></div>
+      <div class="row"><label>Versement mensuel (€)</label><input id="mensuel" type="number" value="50"></div>
+      <div class="row"><label>Taux annuel (%)</label><input id="tauxAnnuel" type="number" step="0.1" value="11"></div>
+      <div class="row"><label>Frais annuels (%)</label><input id="fraisAnnuel" type="number" step="0.05" value="0.3"></div>
+      <div class="row"><label>Inflation (%)</label><input id="inflationAnnuel" type="number" step="0.1" value="2"></div>
+      <div class="row"><label>Durée (années)</label><input id="duree" type="number" min="1" value="10"></div>
+      <div class="toggle"><input id="debutPeriode" type="checkbox" checked><label for="debutPeriode">Versement en début de période</label></div>
+      <div class="hr"></div>
+      <h3 style="margin:0 0 6px">Livret classique (type Livret A)</h3>
+      <div class="toggle"><input id="showLA" type="checkbox" checked><label for="showLA">Afficher la courbe Livret A</label></div>
+      <div class="row"><label>Taux annuel (%)</label><input id="tauxLA" type="number" step="0.05" value="3"></div>
+    </div>
+
+    <!-- RIGHT: KPIs + chart -->
+    <div class="card">
+      <div class="kpis">
+        <div class="kpi"><div class="lab">Valeur finale (invest.)</div><div id="k_final_inv" class="val">—</div></div>
+        <div class="kpi"><div class="lab">Intérêts cumulés</div><div id="k_interest_inv" class="val">—</div></div>
+        <div class="kpi"><div class="lab">Versements cumulés</div><div id="k_deposits" class="val">—</div></div>
+        <div class="kpi"><div class="lab">Valeur réelle (invest.)</div><div id="k_real_inv" class="val">—</div></div>
+        <div class="kpi"><div class="lab">Valeur finale (Livret A)</div><div id="k_final_la" class="val">—</div></div>
+        <div class="kpi"><div class="lab">Valeur réelle (Livret A)</div><div id="k_real_la" class="val">—</div></div>
+      </div>
+
+      <div class="legend">
+        <span><span class="dotLegend" style="background:var(--grey)"></span> Versements</span>
+        <span><span class="dotLegend" style="background:var(--green)"></span> Portefeuille</span>
+        <span><span class="dotLegend" style="background:var(--blue)"></span> Portefeuille réel</span>
+        <span><span class="dotLegend" style="background:var(--amber)"></span> Livret A</span>
+        <span><span class="dotLegend" style="background:var(--amberLight)"></span> Livret A réel</span>
+      </div>
+      <div style="height:340px"><canvas id="chart"></canvas></div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:16px">
+    <h3 style="margin:0 0 8px">Tableau mensuel</h3>
+    <table>
+      <thead><tr><th>Période</th><th>Versement</th><th>Intérêts (brut)</th><th>Frais (est.)</th><th>Total fin période</th></tr></thead>
+      <tbody id="tbody"></tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+(function(){
+  const els = {
+    capital: document.getElementById('capital'),
+    mensuel: document.getElementById('mensuel'),
+    tauxAnnuel: document.getElementById('tauxAnnuel'),
+    fraisAnnuel: document.getElementById('fraisAnnuel'),
+    inflationAnnuel: document.getElementById('inflationAnnuel'),
+    duree: document.getElementById('duree'),
+    debutPeriode: document.getElementById('debutPeriode'),
+    showLA: document.getElementById('showLA'),
+    tauxLA: document.getElementById('tauxLA'),
+    k_final_inv: document.getElementById('k_final_inv'),
+    k_interest_inv: document.getElementById('k_interest_inv'),
+    k_deposits: document.getElementById('k_deposits'),
+    k_real_inv: document.getElementById('k_real_inv'),
+    k_final_la: document.getElementById('k_final_la'),
+    k_real_la: document.getElementById('k_real_la'),
+    tbody: document.getElementById('tbody'),
+    csvTop: document.getElementById('csvTop')
+  };
+
+  const ctx = document.getElementById('chart').getContext('2d');
+  const chart = new Chart(ctx, {
+    type:'line',
+    data:{
+      labels:[],
+      datasets:[
+        {label:'Versements', data:[], borderColor:getCss('--grey'), pointRadius:0, tension:.25},
+        {label:'Portefeuille', data:[], borderColor:getCss('--green'), pointRadius:0, tension:.25},
+        {label:'Portefeuille réel', data:[], borderColor:getCss('--blue'), pointRadius:0, tension:.25},
+        {label:'Livret A', data:[], borderColor:getCss('--amber'), pointRadius:0, tension:.25},
+        {label:'Livret A réel', data:[], borderColor:getCss('--amberLight'), pointRadius:0, tension:.25}
+      ]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      scales:{
+        x:{ grid:{color:'rgba(255,255,255,.06)'}, ticks:{color:'#9aa3b2', callback:(v,i)=> i%12===0? (i/12).toString(): ''}},
+        y:{ grid:{color:'rgba(255,255,255,.06)'}, ticks:{color:'#9aa3b2'} }
+      },
+      plugins:{legend:{display:false}}
+    }
+  });
+
+  function getCss(v){ return getComputedStyle(document.documentElement).getPropertyValue(v).trim(); }
+  const fmtMoney = n => new Intl.NumberFormat('fr-FR',{style:'currency',currency:'EUR',maximumFractionDigits:0}).format(n);
+
+  const monthlyRate = a => Math.pow(1 + a/100, 1/12) - 1;
+
+  function simulateInvestment({capital, mensuel, tauxAnnuel, fraisAnnuel, inflationAnnuel, duree, debutPeriode}){
+    const months = Math.max(1, Math.round(duree*12));
+    const r = monthlyRate(tauxAnnuel);
+    const f = monthlyRate(fraisAnnuel); // fee as % annual -> monthly increment; we subtract
+    const i = monthlyRate(inflationAnnuel);
+
+    let bal = capital;
+    let invested = capital;
+    let inflationFactor = 1;
+
+    const deposits=[], portfolio=[], real=[], rows=[];
+
+    for(let m=1; m<=months; m++){
+      if(debutPeriode){ bal+=mensuel; invested+=mensuel; }
+      const before = bal;
+      const afterInterest = bal * (1 + r);
+      // model fees as a reduction of value by 'f' (i.e., after fee: afterInterest*(1 - f_eff)). Use fEff from annual % as positive number.
+      const fEff = monthlyRate(fraisAnnuel >= 0 ? fraisAnnuel : 0); // ensure non-negative
+      const afterFee = afterInterest * (1 - fEff);
+      const interestBrut = afterInterest - before;
+      const feeAmt = afterInterest - afterFee;
+      bal = afterFee;
+      if(!debutPeriode){ bal+=mensuel; invested+=mensuel; }
+      inflationFactor *= (1 + i);
+
+      deposits.push(invested);
+      portfolio.push(bal);
+      real.push(bal / inflationFactor);
+      rows.push({p:m, dep:mensuel, interets:Math.max(0, Math.round(interestBrut)), frais:Math.round(feeAmt), total:Math.round(bal)});
+    }
+    return {months, deposits, portfolio, real, invested, final:bal, realFinal: real[real.length-1], interest: bal - invested, rows};
+  }
+
+  function simulateLivretA({capital, mensuel, tauxLA, inflationAnnuel, duree, debutPeriode}){
+    const months = Math.max(1, Math.round(duree*12));
+    const r = monthlyRate(tauxLA);
+    const i = monthlyRate(inflationAnnuel);
+    let bal = capital;
+    let inflationFactor = 1;
+    const series=[], real=[];
+
+    for(let m=1; m<=months; m++){
+      if(debutPeriode){ bal+=mensuel; }
+      bal *= (1 + r);
+      if(!debutPeriode){ bal+=mensuel; }
+      inflationFactor *= (1 + i);
+      series.push(bal);
+      real.push(bal / inflationFactor);
+    }
+    return {series, real, final: bal, realFinal: real[real.length-1]};
+  }
+
+  function render(){
+    const p = {
+      capital: Number(els.capital.value||0),
+      mensuel: Number(els.mensuel.value||0),
+      tauxAnnuel: Number(els.tauxAnnuel.value||0),
+      fraisAnnuel: Number(els.fraisAnnuel.value||0),
+      inflationAnnuel: Number(els.inflationAnnuel.value||0),
+      duree: Number(els.duree.value||1),
+      debutPeriode: els.debutPeriode.checked,
+      tauxLA: Number(els.tauxLA.value||0),
+      showLA: els.showLA.checked
+    };
+
+    const inv = simulateInvestment(p);
+    const la  = p.showLA ? simulateLivretA(p) : {series:[], real:[], final:0, realFinal:0};
+
+    // Chart
+    chart.data.labels = Array.from({length: inv.months}, (_,i)=> i+1);
+    chart.data.datasets[0].data = inv.deposits;
+    chart.data.datasets[1].data = inv.portfolio;
+    chart.data.datasets[2].data = inv.real;
+    chart.data.datasets[3].data = la.series;
+    chart.data.datasets[4].data = la.real;
+    chart.update('none');
+
+    // KPIs
+    els.k_final_inv.textContent   = fmtMoney(inv.final);
+    els.k_interest_inv.textContent= fmtMoney(inv.interest);
+    els.k_deposits.textContent    = fmtMoney(inv.invested);
+    els.k_real_inv.textContent    = fmtMoney(inv.realFinal);
+    els.k_final_la.textContent    = p.showLA ? fmtMoney(la.final) : '—';
+    els.k_real_la.textContent     = p.showLA ? fmtMoney(la.realFinal) : '—';
+
+    // Table
+    els.tbody.innerHTML = inv.rows.map(r => `<tr><td>${r.p}</td><td>${fmtMoney(r.dep)}</td><td>${fmtMoney(r.interets)}</td><td>${fmtMoney(r.frais)}</td><td>${fmtMoney(r.total)}</td></tr>`).join('');
+  }
+
+  function exportCsv(){
+    const rows = [['Periode','Versement','InteretsBrut','Frais','TotalFinPeriode']];
+    // read current table body so export matches view
+    document.querySelectorAll('#tbody tr').forEach(tr => {
+      rows.push([...tr.children].map(td => td.textContent.replace(/\s/g,'')));
+    });
+    const csv = rows.map(r=>r.join(',')).join('\n');
+    const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'simulation_epargne.csv';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  // Wire
+  ['input','change'].forEach(evt => {
+    Object.values({
+      cap:els.capital, men:els.mensuel, t:els.tauxAnnuel, f:els.fraisAnnuel, inf:els.inflationAnnuel,
+      d:els.duree, deb:els.debutPeriode, show:els.showLA, tLA:els.tauxLA
+    }).forEach(el => el.addEventListener(evt, render));
+  });
+  els.csvTop.addEventListener('click', exportCsv);
+
+  // Initial draw
+  render();
+})();
+</script>
+</body>
+</html>
